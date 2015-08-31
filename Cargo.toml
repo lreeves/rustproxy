@@ -1,0 +1,8 @@
+[package]
+name = "rproxy"
+version = "0.1.0"
+authors = ["Luke Reeves <luke.reeves@gmail.com>"]
+
+[dependencies]
+regex = "0.1.41"
+time = "0.1.32"
