@@ -15,12 +15,18 @@ enum Verb {
     DELETE
 }
 
+// Hashmap would be a fit but headers can be duplicated
+struct Header {
+    key: String,
+    value: String
+}
+
 struct Request {
     verb: String,
     hostname: String,
     path: String,
     protocol: String,
-    client_headers: Vec<String>
+    client_headers: Vec<Header>
 }
 
 fn read_request(stream: &mut TcpStream) -> Request {
@@ -51,7 +57,13 @@ fn read_request(stream: &mut TcpStream) -> Request {
     // structures vector at this one.
     for header in request_iterator { // iterator is already past request line
         if header.len() > 0 {
-            request.client_headers.push(header.to_string());
+            let tokens: Vec<&str> = header.splitn(2, ": ").collect();
+            if tokens.len() == 2 {
+                request.client_headers.push(Header {
+                    key: tokens[0].to_string(),
+                    value: tokens[1].to_string()
+                });
+            }
         }
     }
 
@@ -81,26 +93,8 @@ fn send_request(request: &Request, stream: &mut TcpStream) {
 
     // Send all client headers
     for header in request.client_headers.iter() {
-        let kv_re = Regex::new(r"(.*?): (.*)").unwrap();
-        let header_captures = kv_re.captures(header);
-
-        match header_captures {
-            None => {}
-            Some(header_captures) => {
-                match header_captures.at(1) {
-                    None => {}
-                    Some(key) => {
-                        match header_captures.at(2) {
-                            None => {}
-                            Some(value) => {
-                                let outbound_header = format!("{}: {}\r\n", key, value);
-                                stream.write(&outbound_header.into_bytes());
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        let outbound_header = format!("{}: {}\r\n", header.key, header.value);
+        stream.write(&outbound_header.into_bytes());
     }
 
     stream.write(b"Connection: close\r\n");
